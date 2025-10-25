@@ -1,0 +1,7 @@
+streamlit
+ollama
+ddgs
+langchain
+langchain-community
+chromadb
+langchain-text-splitters
