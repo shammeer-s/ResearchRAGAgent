@@ -1,5 +1,13 @@
 from ddgs import DDGS
-from config import ACADEMIC_SEARCH_SITES, SEARCH_RESULT_COUNT
+import json
+
+def load_config():
+    with open('config.json', 'r') as f:
+        return json.load(f)
+
+config = load_config()
+ACADEMIC_SEARCH_SITES = config['search']['academic_search_sites']
+SEARCH_RESULT_COUNT = config['search']['search_result_count']
 
 def get_search_results(query: str, search_type: str) -> list[dict]:
     """
@@ -8,14 +16,12 @@ def get_search_results(query: str, search_type: str) -> list[dict]:
     print(f"[Tool] Running search type: {search_type}")
 
     if search_type == "academic_research":
-        # Fix: Corrected typo from ACADEMWINIC... to ACADEMIC...
         site_query = " OR ".join(ACADEMIC_SEARCH_SITES)
         query = f"{query} ({site_query})"
 
     results = []
     with DDGS() as ddgs:
 
-        # Fix: Changed 'keywords=query' to be the first positional argument
         ddgs_results = ddgs.text(
             query,
             region='wt-wt',

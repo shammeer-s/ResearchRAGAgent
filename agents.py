@@ -1,14 +1,19 @@
 import ollama
 import re
-from prompts import (
-    OLLAMA_MODEL, ROUTER_PROMPT, CRITIC_PROMPT,
-    SYNTHESIS_PROMPT, FEEDBACK_PROMPT, QA_PROMPT
-)
 from tools import get_search_results
+import json
+
+def load_config():
+    with open('config.json', 'r') as f:
+        return json.load(f)
 
 client = ollama.Client()
+config = load_config()
+PROMPTS = config['prompts']
+OLLAMA_MODEL = config['models']['ollama_model']
 
-def _call_llm(prompt: str, temperature: float = 0.0) -> str:
+
+def _call_llm(prompt, temperature= 0.0):
     """Helper function to call the Ollama API."""
     try:
         response = client.chat(
@@ -21,11 +26,10 @@ def _call_llm(prompt: str, temperature: float = 0.0) -> str:
         print(f"Error calling LLM: {e}")
         return "Error: Could not get response from model."
 
-# --- AGENT DEFINITIONS ---
 
-def run_router_agent(query: str) -> str:
+def run_router_agent(query):
     """Classifies the query."""
-    prompt = ROUTER_PROMPT.format(query=query)
+    prompt = PROMPTS['router'].format(query=query)
     decision = _call_llm(prompt)
 
     if 'academic_research' in decision:
@@ -35,11 +39,11 @@ def run_router_agent(query: str) -> str:
     else:
         return 'general_search'
 
-def run_search_agent(query: str, search_type: str) -> list[dict]:
+def run_search_agent(query, search_type):
     """Runs the specified search."""
     return get_search_results(query, search_type)
 
-def run_rag_agent(query: str, retriever) -> str:
+def run_rag_agent(query, retriever):
     """Gets relevant code snippets from the vector store."""
     if not retriever:
         return "No code retriever available."
@@ -52,7 +56,7 @@ def run_rag_agent(query: str, retriever) -> str:
     ])
     return context
 
-def run_critic_agent(query: str, search_results: list[dict]) -> tuple[list[dict], str]:
+def run_critic_agent(query, search_results):
     """
     Reads all search snippets and returns only the most relevant ones.
     """
@@ -63,7 +67,7 @@ def run_critic_agent(query: str, search_results: list[dict]) -> tuple[list[dict]
     for res in search_results:
         snippet_text += f"[{res['index']}] {res['snippet']}\n\n"
 
-    prompt = CRITIC_PROMPT.format(query=query, snippets=snippet_text)
+    prompt = PROMPTS['critic'].format(query=query, snippets=snippet_text)
     reasoning = f"Critiquing {len(search_results)} snippets..."
 
     response = _call_llm(prompt)
@@ -72,7 +76,7 @@ def run_critic_agent(query: str, search_results: list[dict]) -> tuple[list[dict]
         return [], "Critic found no relevant snippets."
 
     try:
-        # Extract indices (e.g., "1, 3, 5")
+        # Extract indices
         indices_to_keep = [int(i) for i in re.findall(r'\d+', response)]
         if not indices_to_keep:
             return [], "Critic response was unparsable."
@@ -89,7 +93,7 @@ def run_critic_agent(query: str, search_results: list[dict]) -> tuple[list[dict]
         return search_results, "Critic agent failed, using all snippets."
 
 
-def run_synthesis_agent(query: str, research_context: str, code_context: str, feedback: str = None) -> str:
+def run_synthesis_agent(query, research_context, code_context, feedback= None):
     """Generates the final report."""
 
     feedback_section = ""
@@ -102,7 +106,7 @@ def run_synthesis_agent(query: str, research_context: str, code_context: str, fe
         ---
         """
 
-    prompt = SYNTHESIS_PROMPT.format(
+    prompt = PROMPTS['synthesis'].format(
         query=query,
         feedback_section=feedback_section,
         research_context=research_context,
@@ -111,12 +115,12 @@ def run_synthesis_agent(query: str, research_context: str, code_context: str, fe
 
     return _call_llm(prompt, temperature=0.1)
 
-def run_feedback_agent(query: str, report: str) -> str:
+def run_feedback_agent(query, report):
     """Runs the supervisor agent to check report quality."""
-    prompt = FEEDBACK_PROMPT.format(query=query, report=report)
+    prompt = PROMPTS['feedback'].format(query=query, report=report)
     return _call_llm(prompt)
 
-def run_qa_agent(report: str, question: str) -> str:
+def run_qa_agent(report, question):
     """Answers follow-up questions about the report."""
-    prompt = QA_PROMPT.format(report=report, question=question)
+    prompt = PROMPTS['qa'].format(report=report, question=question)
     return _call_llm(prompt, temperature=0.0)
