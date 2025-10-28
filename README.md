@@ -101,8 +101,8 @@ Ensure your Ollama application is running in the background.
 ```shell
 streamlit run app.py
 ```
+![](output.png "Output")
 
-![Image](test.png)
 
 ### 4. First-Time Setup (Embedding Your Code)
 

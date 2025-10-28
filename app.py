@@ -20,11 +20,15 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     
-    * Main container */
+    /* Main container */
     [data-testid="stAppViewContainer"] {
         background: #ffffff; /* White background */
         color: #1f1f1f; /* Dark text */
-    }/
+    }
+    [data-testid="stHeader"] {
+        display: none;
+    }
+    
     
     /* Sidebar */
     [data-testid="stSidebar"] {
@@ -36,8 +40,12 @@ st.markdown("""
         font-weight: 600;
     }
     
+    [data-testid="stTextInput"] input::placeholder {
+        color: #1f1f1f; /* Google Blue */
+    }
+    
     [data-testid="stSidebar"] div, [data-testid="stSidebar"] p {
-        color: #333; /* Dark text */
+        color: #333333CC; /* Dark text */
     }
 
     /* Main content area */
@@ -244,7 +252,7 @@ def format_report_with_links(report, source_map):
 if 'retriever' not in st.session_state:
     st.session_state.retriever = None
 if 'report' not in st.session_state:
-    
+
     st.session_state.report = None
 if 'source_map' not in st.session_state:
     st.session_state.source_map = None
@@ -259,7 +267,7 @@ with st.sidebar:
 
     code_dir = st.text_input("Path to your code directory", "./")
 
-    if st.button("Load & Embed Code"):
+    if st.button("Load & Embed Code", type="primary"):
         if not code_dir:
             st.error("Please provide a directory path.")
         else:
@@ -278,19 +286,19 @@ query = st.text_input("Enter your research query:",
                       placeholder="e.g., Explain 'Attention Is All You Need' and how it relates to my 'transformer.py' file")
 
 if st.button("Run Research", type="primary"):
-    
+
     if not query:
         st.error("Please enter a query.")
     else:
-        
+
         st.session_state.report = None
         st.session_state.source_map = None
         st.session_state.qa_history = []
-        
+
 
         with st.spinner("Agents at work... please wait..."):
             try:
-                
+
                 # Router Agent
                 print("Running Router Agent...")
                 decision = run_router_agent(query)
@@ -300,14 +308,16 @@ if st.button("Run Research", type="primary"):
                 search_results = run_search_agent(query, decision)
 
                 code_context = ""
-                
+
                 if st.session_state.retriever:
                     print("Running Code RAG Agent...")
                     code_context = run_rag_agent(query, st.session_state.retriever)
+                else:
+                    print("No code retriever available. Skipping code context.")
 
                 # Critic Agent
                 filtered_results, critic_reasoning = run_critic_agent(query, search_results)
-                print(f"🧐 Critic decision: {critic_reasoning}")
+                print(f"Critic decision: {critic_reasoning}")
 
                 # Format Context
                 research_context, source_map = format_context_and_sources(filtered_results)
